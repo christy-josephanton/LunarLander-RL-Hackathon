@@ -2,9 +2,10 @@
 
 import gymnasium as gym
 from state_discretizer import StateDiscretizer
+import numpy as np
 
 class LunarLanderAgent:
-    def __init__(self):
+    def __init__(self, render_mode=None, debug=False):
         """
         Initialize your agent here.
 
@@ -15,7 +16,8 @@ class LunarLanderAgent:
         # TODO: Initialize your agent's parameters and variables
 
         # Initialize environment
-        self.env = gym.make('LunarLander-v3')
+        self.env = gym.make('LunarLander-v3', render_mode=render_mode)
+        self.debug = debug # enables print statements
 
         # Initialize state discretizer if you are going to use Q-Learning
         # self.state_discretizer = StateDiscretizer(self.env)
@@ -52,7 +54,8 @@ class LunarLanderAgent:
         # Discretize the state if you are going to use Q-Learning
         # state_features = self.state_discretizer.discretize(state)
         
-        pass
+        ##TODO temp random action 
+        return self.env.action_space.sample() 
 
     def train(self, num_episodes):
         """
@@ -98,7 +101,25 @@ class LunarLanderAgent:
         # TODO: Implement your testing loop here
         # Make sure to:
         # Store the cumulative rewards (return) in all episodes and then take the average 
-        pass
+
+        rewards = []   
+
+        for _ in range(num_episodes):
+            state, info = agent.env.reset()
+            reward_accum = 0
+            done = False
+            while not done:
+                action = self.select_action(state)
+                state, reward, terminated, truncated, info = self.env.step(action)
+                reward_accum+=reward
+
+                done = terminated or truncated
+       
+            if self.debug: print(f"reward: {reward_accum}")  
+
+            rewards.append(reward_accum)
+
+        return np.mean(rewards)
 
     def save_agent(self, file_name):
         """
@@ -134,7 +155,11 @@ class LunarLanderAgent:
 
 if __name__ == '__main__':
 
-    agent = LunarLanderAgent()
+
+    # agent = LunarLanderAgent()
+    # agent = LunarLanderAgent(debug=True)
+    agent = LunarLanderAgent(render_mode="human", debug=True) # much slower but shows visuals 
+
     agent_model_file = 'model.pkl'  # Set the model file name
 
     # Example usage:
@@ -148,3 +173,8 @@ if __name__ == '__main__':
     # Save the trained model
     # agent.save_model(agent_model_file)
     # print("Model saved.")
+
+    #Test Trained Model
+    num_testing_episodes = 10  # Define the number of testing episodes
+    average_reward = agent.test(num_testing_episodes)
+    print(average_reward)
