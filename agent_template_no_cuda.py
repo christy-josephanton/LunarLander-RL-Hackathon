@@ -11,12 +11,6 @@ import torch.nn.functional as F
 from collections import deque
 import random
 
-
-print(torch.cuda.is_available())
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-print(device)
-# torch.backends.cuda.matmul.allow_tf32 = True
-
 # https://pytorch.org/tutorials/intermediate/reinforcement_q_learning.html
 class DQN(nn.Module):
 
@@ -24,12 +18,13 @@ class DQN(nn.Module):
         super(DQN, self).__init__()
         self.layer1 = nn.Linear(num_states, 128)
         self.layer2 = nn.Linear(128, 128)
-
+        self.layer21 = nn.Linear(128, 128)
         self.layer3 = nn.Linear(128, num_actions)
 
     def forward(self, x):
         x = F.relu(self.layer1(x))
         x = F.relu(self.layer2(x))
+        x = F.relu(self.layer21(x))
         return self.layer3(x)
 
 class LunarLanderAgent:
@@ -49,11 +44,11 @@ class LunarLanderAgent:
 
         # Set learning parameters
         self.epsilon = 1.0        # Initial exploration rate
-        self.epsilon_min = 0.01        # Initial exploration rate
+        self.epsilon_min = 0.01        # Minimum exploration rate
         self.epsilon_decay = 0.995   # Exploration decay rate
         
         # Initialize any other parameters and variables
-        self.learning_rate =0.001
+        self.learning_rate = 0.001
         self.batch_size = 64
         self.mem_size = 10
         self.gamma = 0.99
@@ -61,8 +56,8 @@ class LunarLanderAgent:
         self.step = 0
 
         # Initialize Neutral Networks
-        self.dqn = DQN(self.env.observation_space.shape[0], self.env.action_space.n).to(device)
-        self.dqn_target = DQN(self.env.observation_space.shape[0], self.env.action_space.n).to(device)
+        self.dqn = DQN(self.env.observation_space.shape[0], self.env.action_space.n)
+        self.dqn_target = DQN(self.env.observation_space.shape[0], self.env.action_space.n)
 
         # Match two DQN Network weights/biases
         self.dqn_target.load_state_dict(self.dqn.state_dict())
@@ -94,10 +89,10 @@ class LunarLanderAgent:
         else: #if not, select action based off memory
     
             # convert to state to tensor, pass to model, get prediction, return
-            state_tensor = torch.tensor(state, dtype=torch.float32).to(device)  # Convert state to tensor
+            state_tensor = torch.tensor(state, dtype=torch.float32)  # Convert state to tensor
             with torch.no_grad():
                 q_values = self.dqn(state_tensor)  # get prediction
-            return int(np.argmax(q_values.cpu().numpy()))  # convert tensor->np, get action
+            return int(np.argmax(q_values.numpy()))  # convert tensor->np, get action
 
 
             
@@ -166,11 +161,11 @@ class LunarLanderAgent:
         states, actions, rewards, next_states, dones = zip(*batch)
 
         # convert data to tensors
-        states = torch.tensor(np.array(states), dtype=torch.float32).to(device)
-        actions = torch.tensor(actions, dtype=torch.int64).view(-1, 1).to(device)  # column vector
-        rewards = torch.tensor(rewards, dtype=torch.float32).view(-1, 1).to(device)  # column vector
-        next_states = torch.tensor(np.array(next_states), dtype=torch.float32).to(device)
-        dones = torch.tensor(dones, dtype=torch.float32).view(-1, 1).to(device)  # column vector
+        states = torch.tensor(np.array(states), dtype=torch.float32)
+        actions = torch.tensor(actions, dtype=torch.int64).view(-1, 1)  # column vector
+        rewards = torch.tensor(rewards, dtype=torch.float32).view(-1, 1)  # column vector
+        next_states = torch.tensor(np.array(next_states), dtype=torch.float32)
+        dones = torch.tensor(dones, dtype=torch.float32).view(-1, 1)  # column vector
 
         # Compute current Q-values
         q_values = self.dqn(states)
@@ -244,7 +239,7 @@ class LunarLanderAgent:
         Args:
             file_name (str): The file name to load the model from.
         """
-        self.dqn.load_state_dict(torch.load(file_name, map_location=device))
+        self.dqn.load_state_dict(torch.load(file_name))
         self.dqn_target.load_state_dict(self.dqn.state_dict())
         if self.debug: print(f"Model loaded from {file_name}.")
 
@@ -262,7 +257,7 @@ if __name__ == '__main__':
     # Example usage:
     # Uncomment the following lines to train your agent and save the model
 
-    num_training_episodes = 3000  # Define the number of training episodes
+    num_training_episodes = 300  # Define the number of training episodes
     print("Training the agent...")
     agent.train(num_training_episodes)
     print("Training completed.")
