@@ -11,7 +11,7 @@ import torch.nn.functional as F
 from collections import deque
 import random
 
-
+agent_model_file = 'model.pkl'
 print(torch.cuda.is_available())
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(device)
@@ -23,13 +23,18 @@ class DQN(nn.Module):
     def __init__(self, num_states, num_actions):
         super(DQN, self).__init__()
         self.layer1 = nn.Linear(num_states, 128)
-        self.layer2 = nn.Linear(128, 128)
-
+        self.layer21 = nn.Linear(128, 1024)
+        self.layer22 = nn.Linear(1024, 1024)
+        self.layer23 = nn.Linear(1024, 1024)
+        self.layer24 = nn.Linear(1024, 128)
         self.layer3 = nn.Linear(128, num_actions)
 
     def forward(self, x):
         x = F.relu(self.layer1(x))
-        x = F.relu(self.layer2(x))
+        x = F.relu(self.layer21(x))
+        x = F.relu(self.layer22(x))
+        x = F.relu(self.layer23(x))
+        x = F.relu(self.layer24(x))
         return self.layer3(x)
 
 class LunarLanderAgent:
@@ -48,13 +53,13 @@ class LunarLanderAgent:
         self.debug = debug # enables print statements
 
         # Set learning parameters
-        self.epsilon = 1.0        # Initial exploration rate
+        self.epsilon = 0        # Initial exploration rate
         self.epsilon_min = 0.01        # Initial exploration rate
         self.epsilon_decay = 0.995   # Exploration decay rate
         
         # Initialize any other parameters and variables
-        self.learning_rate =0.001
-        self.batch_size = 64
+        self.learning_rate =0.0001
+        self.batch_size = 128
         self.mem_size = 10
         self.gamma = 0.99
         self.update_dqn_target_step = 10
@@ -108,6 +113,8 @@ class LunarLanderAgent:
         Args:
             num_episodes (int): Number of episodes to train for.
         """
+
+        self.epsilon = 1.0
         all_rewards = []
         best_reward = -np.inf
 
@@ -139,6 +146,9 @@ class LunarLanderAgent:
                 if self.debug: print("Autosaved")
                 best_reward = average_reward
                 self.best_params = self.dqn.state_dict()
+                agent.save_agent(agent_model_file)
+            if average_reward >= 280:
+                break
 
         
         pass
@@ -208,7 +218,6 @@ class LunarLanderAgent:
         # Store the cumulative rewards (return) in all episodes and then take the average 
 
         rewards = []   
-        self.epsilon = 0 #no chance of explore
         for episode in range(num_episodes):
             state, info = self.env.reset()
             reward_accum = 0
@@ -262,7 +271,7 @@ if __name__ == '__main__':
     # Example usage:
     # Uncomment the following lines to train your agent and save the model
 
-    num_training_episodes = 3000  # Define the number of training episodes
+    num_training_episodes = 2000  # Define the number of training episodes
     print("Training the agent...")
     agent.train(num_training_episodes)
     print("Training completed.")
