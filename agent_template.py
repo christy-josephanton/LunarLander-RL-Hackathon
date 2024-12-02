@@ -25,8 +25,7 @@ class DQN(nn.Module):
         self.layer1 = nn.Linear(num_states, 128)
         self.layer21 = nn.Linear(128, 1024)
         self.layer22 = nn.Linear(1024, 1024)
-        self.layer23 = nn.Linear(1024, 1024)
-        self.layer24 = nn.Linear(1024, 128)
+        self.layer23 = nn.Linear(1024, 128)
         self.layer3 = nn.Linear(128, num_actions)
 
     def forward(self, x):
@@ -34,7 +33,7 @@ class DQN(nn.Module):
         x = F.relu(self.layer21(x))
         x = F.relu(self.layer22(x))
         x = F.relu(self.layer23(x))
-        x = F.relu(self.layer24(x))
+
         return self.layer3(x)
 
 class LunarLanderAgent:
@@ -54,7 +53,7 @@ class LunarLanderAgent:
 
         # Set learning parameters
         self.epsilon = 0        # Initial exploration rate
-        self.epsilon_min = 0.01        # Initial exploration rate
+        self.epsilon_min = 0.0001        # Minimum exploration rate
         self.epsilon_decay = 0.995   # Exploration decay rate
         
         # Initialize any other parameters and variables
@@ -72,7 +71,7 @@ class LunarLanderAgent:
         # Match two DQN Network weights/biases
         self.dqn_target.load_state_dict(self.dqn.state_dict())
 
-        self.optimizer = optim.Adam(self.dqn.parameters(), lr=self.learning_rate)
+        self.optimizer = optim.Adam(self.dqn.parameters(), lr=self.learning_rate, weight_decay=1e-4)
 
         self.best_params = self.dqn.state_dict()
 
@@ -117,7 +116,7 @@ class LunarLanderAgent:
         self.epsilon = 1.0
         all_rewards = []
         best_reward = -np.inf
-
+        avg_reward_list = []
         for episode in range(num_episodes):
             state, _ = self.env.reset()
             total_reward = 0
@@ -140,18 +139,18 @@ class LunarLanderAgent:
             average_reward = np.mean(all_rewards[-100:])
 
             if self.debug: print(f"Episode {episode + 1}/{num_episodes} - Reward: {total_reward:.10f}, Average Reward: {average_reward:.10f}, Epsilon: {self.epsilon:.5f}")
-
+            avg_reward_list.append(average_reward)
             # autosave the best model
             if average_reward >= best_reward :
                 if self.debug: print("Autosaved")
                 best_reward = average_reward
                 self.best_params = self.dqn.state_dict()
                 agent.save_agent(agent_model_file)
-            if average_reward >= 280:
+            if average_reward >= 330:
                 break
 
         
-        pass
+        return avg_reward_list
 
     def update(self, state, action, reward, next_state, done):
         """
@@ -266,24 +265,31 @@ if __name__ == '__main__':
     agent = LunarLanderAgent(debug=True)
     #agent = LunarLanderAgent(render_mode="human", debug=True) # much slower but shows visuals 
 
-    agent_model_file = 'model.pkl'  # Set the model file name
+    agent_model_file = 'model_1024_3_128B_275test.pkl'  # Set the model file name
 
     # Example usage:
     # Uncomment the following lines to train your agent and save the model
 
     num_training_episodes = 2000  # Define the number of training episodes
     print("Training the agent...")
-    agent.train(num_training_episodes)
+    #ave_reward_data = agent.train(num_training_episodes)  # returns a list of all average rewards
     print("Training completed.")
 
     # Save the trained model
-    agent.save_agent(agent_model_file)
+    #agent.save_agent(agent_model_file)
     print("Model saved.")
 
     #Test Trained Model
-    test_agent = LunarLanderAgent(debug=True)
-    #test_agent = LunarLanderAgent(render_mode="human", debug=True) # much slower but shows visuals 
+    #test_agent = LunarLanderAgent(debug=True)
+    test_agent = LunarLanderAgent(render_mode="human", debug=True) # much slower but shows visuals 
     num_testing_episodes = 100  # Define the number of testing episodes
     test_agent.load_agent(agent_model_file)
     average_reward = test_agent.test(num_testing_episodes)
     print('Average Test Reward:',average_reward)
+
+    # plt.figure(figsize=(8,5))
+    # plt.plot(range(len(ave_reward_data)),ave_reward_data)
+    # plt.xlabel('Number of Epochs')
+    # plt.ylabel('Average Reward (Past 100 Epochs)')
+    # plt.title('Average Reward vs Epochs')
+    # plt.show()
